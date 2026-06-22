@@ -1,9 +1,15 @@
 #include "TDIPlayerController.h"
-#include "TDITowerBase.h"
+#include "TDITopDownPawn.h"
+#include "Towers/TDITowerBase.h"
+#include "Territory/TDITerritoryBase.h"
+#include "Logistics/TDIRoad.h"
+#include "Subsystems/TDITerritorySubsystem.h"
+#include "Save/TDISaveManager.h"
+#include "UI/TDIHUDBase.h"
 #include "EnhancedInputComponent.h"
 #include "EnhancedInputSubsystems.h"
-#include "InputMappingContext.h"
-#include "Engine/World.h"
+#include "Blueprint/UserWidget.h"
+#include "Kismet/GameplayStatics.h"
 
 ATDIPlayerController::ATDIPlayerController()
 {
@@ -33,18 +39,32 @@ void ATDIPlayerController::SetupInputComponent()
 
 	if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InputComponent))
 	{
-		if (IA_PlaceTower)
-			EIC->BindAction(IA_PlaceTower, ETriggerEvent::Triggered, this, &ATDIPlayerController::OnPlaceTowerInput);
+		if (IA_PrimaryAction)
+			EIC->BindAction(IA_PrimaryAction, ETriggerEvent::Started, this,
+				&ATDIPlayerController::OnPrimaryAction);
 
-		if (IA_CancelAction)
-			EIC->BindAction(IA_CancelAction, ETriggerEvent::Triggered, this, &ATDIPlayerController::OnCancelInput);
-
-		if (IA_ScrollCamera)
-			EIC->BindAction(IA_ScrollCamera, ETriggerEvent::Triggered, this, &ATDIPlayerController::OnScrollCameraInput);
+		if (IA_SecondaryAction)
+			EIC->BindAction(IA_SecondaryAction, ETriggerEvent::Started, this,
+				&ATDIPlayerController::OnSecondaryAction);
 
 		if (IA_PanCamera)
-			EIC->BindAction(IA_PanCamera, ETriggerEvent::Triggered, this, &ATDIPlayerController::OnPanCameraInput);
+			EIC->BindAction(IA_PanCamera, ETriggerEvent::Triggered, this,
+				&ATDIPlayerController::OnPanCamera);
+
+		if (IA_ZoomCamera)
+			EIC->BindAction(IA_ZoomCamera, ETriggerEvent::Triggered, this,
+				&ATDIPlayerController::OnZoomCamera);
+
+		if (IA_QuickSave)
+			EIC->BindAction(IA_QuickSave, ETriggerEvent::Started, this,
+				&ATDIPlayerController::OnQuickSave);
 	}
+}
+
+void ATDIPlayerController::Tick(float DeltaTime)
+{
+	Super::Tick(DeltaTime);
+	if (bIsPlacingTower) UpdateGhostTower();
 }
 
 void ATDIPlayerController::SelectTowerForPlacement(TSubclassOf<ATDITowerBase> TowerClass)
@@ -55,16 +75,15 @@ void ATDIPlayerController::SelectTowerForPlacement(TSubclassOf<ATDITowerBase> To
 	bIsPlacingTower = true;
 	PendingTowerClass = TowerClass;
 
-	FVector SpawnLocation;
-	if (GetGroundPositionUnderCursor(SpawnLocation))
+	// Spawn ghost immediately under cursor
+	FVector CursorPos;
+	if (GetCursorWorldPosition(CursorPos))
 	{
 		FActorSpawnParameters Params;
 		Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-		GhostTower = GetWorld()->SpawnActor<ATDITowerBase>(TowerClass, SpawnLocation, FRotator::ZeroRotator, Params);
-		if (GhostTower)
-		{
-			GhostTower->SetGhostMode(true);
-		}
+		GhostTower = GetWorld()->SpawnActor<ATDITowerBase>(TowerClass, CursorPos,
+			FRotator::ZeroRotator, Params);
+		if (GhostTower) GhostTower->SetGhostMode(true);
 	}
 }
 
@@ -79,68 +98,132 @@ void ATDIPlayerController::CancelPlacement()
 	}
 }
 
-void ATDIPlayerController::OnPlaceTowerInput(const FInputActionValue& Value)
+bool ATDIPlayerController::AttemptCaptureTerritory(ATDITerritoryBase* Territory)
 {
-	if (!bIsPlacingTower || !GhostTower) return;
+	UTDITerritorySubsystem* Sub = GetWorld()->GetSubsystem<UTDITerritorySubsystem>();
+	return Sub ? Sub->BeginCaptureAttempt(Territory) : false;
+}
 
-	FVector PlaceLocation;
-	if (!GetGroundPositionUnderCursor(PlaceLocation)) return;
-
-	if (!GhostTower->CanPlaceHere()) return;
-
-	FActorSpawnParameters Params;
-	Params.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
-	ATDITowerBase* NewTower = GetWorld()->SpawnActor<ATDITowerBase>(PendingTowerClass, PlaceLocation, FRotator::ZeroRotator, Params);
-	if (NewTower)
+void ATDIPlayerController::OnPrimaryAction(const FInputActionValue& Value)
+{
+	if (bIsPlacingTower)
 	{
-		NewTower->OnPlaced();
+		// Attempt to place tower
+		if (!GhostTower || !GhostTower->CanPlaceHere()) return;
+
+		FVector PlacePos;
+		if (!GetCursorWorldPosition(PlacePos)) return;
+
+		// Deduct cost
+		// (Cost check deferred to tower — it calls ResourceSubsystem internally)
+		GhostTower->SetActorLocation(PlacePos);
+		GhostTower->OnPlaced();
+		GhostTower = nullptr;   // Tower now "lives" — don't destroy it
+
+		bIsPlacingTower = false;
+		PendingTowerClass = nullptr;
 	}
-
-	CancelPlacement();
-}
-
-void ATDIPlayerController::OnCancelInput(const FInputActionValue& Value)
-{
-	CancelPlacement();
-}
-
-void ATDIPlayerController::OnScrollCameraInput(const FInputActionValue& Value)
-{
-	// Zoom is handled on the pawn's spring arm
-	if (APawn* ControlledPawn = GetPawn())
+	else
 	{
-		ControlledPawn->AddMovementInput(FVector::UpVector, Value.Get<float>());
+		HandleSelection();
 	}
 }
 
-void ATDIPlayerController::OnPanCameraInput(const FInputActionValue& Value)
+void ATDIPlayerController::OnSecondaryAction(const FInputActionValue& Value)
 {
-	if (APawn* ControlledPawn = GetPawn())
+	if (bIsPlacingTower)
 	{
-		FVector2D PanAxis = Value.Get<FVector2D>();
-		ControlledPawn->AddMovementInput(FVector::ForwardVector, PanAxis.Y);
-		ControlledPawn->AddMovementInput(FVector::RightVector, PanAxis.X);
+		CancelPlacement();
+	}
+	else
+	{
+		// Future: open context menu
 	}
 }
 
-bool ATDIPlayerController::GetGroundPositionUnderCursor(FVector& OutPosition) const
+void ATDIPlayerController::OnPanCamera(const FInputActionValue& Value)
 {
-	FHitResult HitResult;
-	if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility), false, HitResult))
+	if (APawn* P = GetPawn())
 	{
-		OutPosition = HitResult.Location;
-		OutPosition.Z = 0.0f;
+		FVector2D Axis = Value.Get<FVector2D>();
+		P->AddMovementInput(FVector::ForwardVector, Axis.Y);
+		P->AddMovementInput(FVector::RightVector, Axis.X);
+	}
+}
+
+void ATDIPlayerController::OnZoomCamera(const FInputActionValue& Value)
+{
+	if (ATDITopDownPawn* P = Cast<ATDITopDownPawn>(GetPawn()))
+	{
+		P->ZoomCamera(Value.Get<float>());
+	}
+}
+
+void ATDIPlayerController::OnQuickSave(const FInputActionValue& Value)
+{
+	if (UTDISaveManager* SaveMgr = GetGameInstance()->GetSubsystem<UTDISaveManager>())
+	{
+		SaveMgr->SaveGame(0);
+	}
+}
+
+bool ATDIPlayerController::GetCursorWorldPosition(FVector& OutPos) const
+{
+	FHitResult Hit;
+	if (GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility),
+		false, Hit))
+	{
+		OutPos = Hit.Location;
+		OutPos.Z = 0.0f;
 		return true;
 	}
 	return false;
 }
 
-void ATDIPlayerController::UpdateGhostTowerPosition()
+void ATDIPlayerController::UpdateGhostTower()
 {
 	if (!GhostTower) return;
 	FVector NewPos;
-	if (GetGroundPositionUnderCursor(NewPos))
+	if (GetCursorWorldPosition(NewPos))
 	{
 		GhostTower->SetActorLocation(NewPos);
+	}
+}
+
+void ATDIPlayerController::HandleSelection()
+{
+	FHitResult Hit;
+	if (!GetHitResultUnderCursorByChannel(UEngineTypes::ConvertToTraceType(ECC_Visibility),
+		false, Hit))
+	{
+		SelectedActor = nullptr;
+		NotifyHUDSelection(nullptr);
+		return;
+	}
+
+	AActor* HitActor = Hit.GetActor();
+	SelectedActor = HitActor;
+	NotifyHUDSelection(HitActor);
+}
+
+void ATDIPlayerController::NotifyHUDSelection(AActor* Actor)
+{
+	// Find the HUD widget in the viewport
+	UUserWidget* HUD = nullptr;
+	TArray<UUserWidget*> Widgets;
+	// Simpler: broadcast through GameMode or find widget by class
+	// For now, direct cast attempt
+	if (UTDIHUDBase* TDIHud = Cast<UTDIHUDBase>(HUD))
+	{
+		if (!Actor) { TDIHud->OnSelectionCleared(); return; }
+
+		if (ATDITowerBase* Tower = Cast<ATDITowerBase>(Actor))
+			TDIHud->OnTowerSelected(Tower);
+		else if (ATDITerritoryBase* Territory = Cast<ATDITerritoryBase>(Actor))
+			TDIHud->OnTerritorySelected(Territory);
+		else if (ATDIRoad* Road = Cast<ATDIRoad>(Actor))
+			TDIHud->OnRoadSelected(Road);
+		else
+			TDIHud->OnSelectionCleared();
 	}
 }

@@ -1,12 +1,16 @@
 #include "TDIGameMode.h"
 #include "TDIPlayerController.h"
 #include "TDITopDownPawn.h"
-#include "TDIHUDWidget.h"
+#include "Castle/TDICastle.h"
+#include "Waves/TDIWaveManager.h"
+#include "Research/TDIResearchManager.h"
+#include "UI/TDIHUDBase.h"
+#include "Save/TDISaveManager.h"
+#include "Blueprint/UserWidget.h"
 #include "Kismet/GameplayStatics.h"
 
 ATDIGameMode::ATDIGameMode()
 {
-	PrimaryActorTick.bCanEverTick = true;
 	DefaultPawnClass = ATDITopDownPawn::StaticClass();
 	PlayerControllerClass = ATDIPlayerController::StaticClass();
 }
@@ -14,80 +18,100 @@ ATDIGameMode::ATDIGameMode()
 void ATDIGameMode::BeginPlay()
 {
 	Super::BeginPlay();
-	PlayerGold = StartingGold;
-	ChangePhase(EGamePhase::Preparation);
-}
 
-void ATDIGameMode::Tick(float DeltaTime)
-{
-	Super::Tick(DeltaTime);
+	CacheActors();
+	CreateHUD();
 
-	if (CurrentPhase == EGamePhase::Preparation)
+	// Wire up castle
+	if (CachedCastle)
 	{
-		PhaseTimer -= DeltaTime;
-		if (PhaseTimer <= 0.0f)
+		CachedCastle->OnCastleDestroyed.AddDynamic(this, &ATDIGameMode::OnCastleDestroyed);
+	}
+
+	// Wire up wave manager
+	if (CachedWaveManager)
+	{
+		CachedWaveManager->OnWaveStarted.AddDynamic(this, &ATDIGameMode::OnWaveStarted);
+		CachedWaveManager->OnWaveCompleted.AddDynamic(this, &ATDIGameMode::OnWaveCompleted);
+		CachedWaveManager->OnAllWavesCompleted.AddDynamic(this, &ATDIGameMode::OnAllWavesCompleted);
+	}
+
+	// Restore auto-save if it exists
+	if (UTDISaveManager* SaveMgr = GetGameInstance()->GetSubsystem<UTDISaveManager>())
+	{
+		SaveMgr->StartAutoSave(120.0f);  // Auto-save every 2 minutes
+
+		if (SaveMgr->HasPendingSave())
 		{
-			StartWave();
+			SaveMgr->ApplySaveToCurrentWorld();
 		}
 	}
+
+	SetPhase(EGamePhase::Preparation);
 }
 
-void ATDIGameMode::StartWave()
-{
-	CurrentWave++;
-	ChangePhase(EGamePhase::Wave);
-	OnWaveStarted.Broadcast(CurrentWave);
-}
-
-void ATDIGameMode::EndWave()
-{
-	if (CurrentWave >= TotalWaves)
-	{
-		ChangePhase(EGamePhase::Victory);
-		return;
-	}
-
-	AddGold(GoldPerWave);
-	ChangePhase(EGamePhase::Preparation);
-}
-
-void ATDIGameMode::OnBaseDestroyed()
-{
-	ChangePhase(EGamePhase::GameOver);
-}
-
-bool ATDIGameMode::SpendGold(int32 Amount)
-{
-	if (PlayerGold < Amount) return false;
-	PlayerGold -= Amount;
-	OnGoldChanged.Broadcast(PlayerGold);
-	return true;
-}
-
-void ATDIGameMode::AddGold(int32 Amount)
-{
-	PlayerGold += Amount;
-	OnGoldChanged.Broadcast(PlayerGold);
-}
-
-void ATDIGameMode::NotifyEnemyKilled()
-{
-	if (EnemiesRemainingInWave > 0)
-	{
-		EnemiesRemainingInWave--;
-		if (EnemiesRemainingInWave == 0)
-		{
-			EndWave();
-		}
-	}
-}
-
-void ATDIGameMode::ChangePhase(EGamePhase NewPhase)
+void ATDIGameMode::SetPhase(EGamePhase NewPhase)
 {
 	CurrentPhase = NewPhase;
-	if (NewPhase == EGamePhase::Preparation)
+	OnGamePhaseChanged.Broadcast(NewPhase);
+
+	if (HUDWidget)
 	{
-		PhaseTimer = PreparationTime;
+		HUDWidget->OnPhaseChanged(NewPhase);
 	}
-	OnPhaseChanged.Broadcast(NewPhase);
+}
+
+void ATDIGameMode::OnCastleDestroyed()
+{
+	SetPhase(EGamePhase::GameOver);
+
+	// Pause all enemies
+	TArray<AActor*> Enemies;
+	UGameplayStatics::GetAllActorsOfClass(this, ACharacter::StaticClass(), Enemies);
+	for (AActor* Enemy : Enemies)
+	{
+		Enemy->SetActorTickEnabled(false);
+	}
+}
+
+void ATDIGameMode::OnAllWavesCompleted()
+{
+	SetPhase(EGamePhase::Victory);
+}
+
+void ATDIGameMode::OnWaveStarted(int32 WaveNumber)
+{
+	SetPhase(EGamePhase::Wave);
+}
+
+void ATDIGameMode::OnWaveCompleted(int32 WaveNumber)
+{
+	SetPhase(EGamePhase::WaveComplete);
+
+	// Brief delay then transition to preparation
+	FTimerHandle DelayTimer;
+	GetWorldTimerManager().SetTimer(DelayTimer,
+		[this]() { if (CurrentPhase == EGamePhase::WaveComplete) SetPhase(EGamePhase::Preparation); },
+		3.0f, false);
+}
+
+void ATDIGameMode::CacheActors()
+{
+	CachedCastle = Cast<ATDICastle>(
+		UGameplayStatics::GetActorOfClass(this, ATDICastle::StaticClass()));
+	CachedWaveManager = Cast<ATDIWaveManager>(
+		UGameplayStatics::GetActorOfClass(this, ATDIWaveManager::StaticClass()));
+	CachedResearchManager = Cast<ATDIResearchManager>(
+		UGameplayStatics::GetActorOfClass(this, ATDIResearchManager::StaticClass()));
+}
+
+void ATDIGameMode::CreateHUD()
+{
+	if (!HUDWidgetClass) return;
+
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PC) return;
+
+	HUDWidget = CreateWidget<UTDIHUDBase>(PC, HUDWidgetClass);
+	if (HUDWidget) HUDWidget->AddToViewport();
 }

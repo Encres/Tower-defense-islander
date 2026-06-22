@@ -2,16 +2,17 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameModeBase.h"
+#include "Data/TDIDataTypes.h"
 #include "TDIGameMode.generated.h"
 
-UENUM(BlueprintType)
-enum class EGamePhase : uint8
-{
-	Preparation,
-	Wave,
-	GameOver,
-	Victory
-};
+class ATDITopDownPawn;
+class ATDIPlayerController;
+class ATDIWaveManager;
+class ATDIResearchManager;
+class ATDICastle;
+class UTDIHUDBase;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGamePhaseChanged, EGamePhase, NewPhase);
 
 UCLASS()
 class TOWERDEFENSEISLANDER_API ATDIGameMode : public AGameModeBase
@@ -22,70 +23,59 @@ public:
 	ATDIGameMode();
 
 	virtual void BeginPlay() override;
-	virtual void Tick(float DeltaTime) override;
 
-	UFUNCTION(BlueprintCallable, Category = "Game")
-	void StartWave();
-
-	UFUNCTION(BlueprintCallable, Category = "Game")
-	void EndWave();
-
-	UFUNCTION(BlueprintCallable, Category = "Game")
-	void OnBaseDestroyed();
-
-	UFUNCTION(BlueprintPure, Category = "Game")
+	// ---- Phase ----
+	UFUNCTION(BlueprintPure, Category = "GameMode")
 	EGamePhase GetCurrentPhase() const { return CurrentPhase; }
 
-	UFUNCTION(BlueprintPure, Category = "Game")
-	int32 GetCurrentWave() const { return CurrentWave; }
+	UFUNCTION(BlueprintCallable, Category = "GameMode")
+	void SetPhase(EGamePhase NewPhase);
 
-	UFUNCTION(BlueprintPure, Category = "Game")
-	int32 GetTotalWaves() const { return TotalWaves; }
+	// ---- Convenience accessors ----
+	UFUNCTION(BlueprintPure, Category = "GameMode")
+	ATDIWaveManager* GetWaveManager() const { return CachedWaveManager; }
 
-	UFUNCTION(BlueprintPure, Category = "Game")
-	int32 GetPlayerGold() const { return PlayerGold; }
+	UFUNCTION(BlueprintPure, Category = "GameMode")
+	ATDIResearchManager* GetResearchManager() const { return CachedResearchManager; }
 
-	UFUNCTION(BlueprintCallable, Category = "Game")
-	bool SpendGold(int32 Amount);
+	UFUNCTION(BlueprintPure, Category = "GameMode")
+	ATDICastle* GetCastle() const { return CachedCastle; }
 
-	UFUNCTION(BlueprintCallable, Category = "Game")
-	void AddGold(int32 Amount);
+	// ---- Events ----
+	UPROPERTY(BlueprintAssignable, Category = "GameMode|Events")
+	FOnGamePhaseChanged OnGamePhaseChanged;
 
 protected:
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Wave")
-	int32 TotalWaves = 10;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Wave")
-	float PreparationTime = 30.0f;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economy")
-	int32 StartingGold = 150;
-
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Economy")
-	int32 GoldPerWave = 50;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "GameMode")
+	TSubclassOf<UTDIHUDBase> HUDWidgetClass;
 
 private:
 	EGamePhase CurrentPhase = EGamePhase::Preparation;
-	int32 CurrentWave = 0;
-	int32 PlayerGold = 0;
-	float PhaseTimer = 0.0f;
-	int32 EnemiesRemainingInWave = 0;
 
-	void ChangePhase(EGamePhase NewPhase);
+	UPROPERTY()
+	TObjectPtr<ATDIWaveManager> CachedWaveManager;
 
-public:
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnPhaseChanged, EGamePhase, NewPhase);
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnGoldChanged, int32, NewAmount);
-	DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnWaveStarted, int32, WaveNumber);
+	UPROPERTY()
+	TObjectPtr<ATDIResearchManager> CachedResearchManager;
 
-	UPROPERTY(BlueprintAssignable, Category = "Game|Events")
-	FOnPhaseChanged OnPhaseChanged;
+	UPROPERTY()
+	TObjectPtr<ATDICastle> CachedCastle;
 
-	UPROPERTY(BlueprintAssignable, Category = "Game|Events")
-	FOnGoldChanged OnGoldChanged;
+	UPROPERTY()
+	TObjectPtr<UTDIHUDBase> HUDWidget;
 
-	UPROPERTY(BlueprintAssignable, Category = "Game|Events")
-	FOnWaveStarted OnWaveStarted;
+	UFUNCTION()
+	void OnCastleDestroyed();
 
-	void NotifyEnemyKilled();
+	UFUNCTION()
+	void OnAllWavesCompleted();
+
+	UFUNCTION()
+	void OnWaveStarted(int32 WaveNumber);
+
+	UFUNCTION()
+	void OnWaveCompleted(int32 WaveNumber);
+
+	void CacheActors();
+	void CreateHUD();
 };

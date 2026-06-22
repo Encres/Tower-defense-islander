@@ -16,14 +16,16 @@ public class TowerDefenseIslander : ModuleRules
 			"Paper2D",
 			"UMG",
 			"Slate",
-			"SlateCore"
+			"SlateCore",
+			"GameplayTags",
+			"AIModule",
+			"NavigationSystem",
+			"GameplayTasks",
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"AIModule",
-			"NavigationSystem",
-			"GameplayTasks"
+			"GameplayDebugger",
 		});
 	}
 }
