@@ -36,7 +36,7 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Enemy")
 	float GetPathProgress() const { return PathProgress; }
 
-	UFUNCTION(BlueprintPure, Category = "Enemy")
+	UFUNCTION(BlueprintCallable, Category = "Enemy")
 	void SetPathProgress(float Progress) { PathProgress = Progress; }
 
 	UFUNCTION(BlueprintPure, Category = "Enemy")

@@ -17,12 +17,12 @@ void ATDIProjectileBase::BeginPlay()
 }
 
 void ATDIProjectileBase::Initialize(ATDIEnemyBase* InTarget, float InDamage,
-	float InSplashRadius, AActor* InInstigatorActor)
+	float InSplashRadius, AActor* InTowerInstigatorActor)
 {
 	Target = InTarget;
 	Damage = InDamage;
 	SplashRadius = InSplashRadius;
-	Instigator = InInstigatorActor;
+	TowerInstigator = InTowerInstigatorActor;
 }
 
 void ATDIProjectileBase::ApplyEffect(float SlowAmount, float DotDamage, float DotDuration)
@@ -76,7 +76,7 @@ void ATDIProjectileBase::OnHit_Implementation(ATDIEnemyBase* HitEnemy)
 	if (HitEnemy)
 	{
 		FDamageEvent DmgEvent;
-		HitEnemy->TakeDamage(Damage, DmgEvent, nullptr, Instigator);
+		HitEnemy->TakeDamage(Damage, DmgEvent, nullptr, TowerInstigator);
 
 		if (PendingSlowAmount > 0.0f || PendingDotDamage > 0.0f)
 		{
@@ -112,7 +112,7 @@ void ATDIProjectileBase::DetonateAtLocation(const FVector& Location)
 			const float SplashDmg = Damage * Falloff * 0.5f;
 
 			FDamageEvent DmgEvent;
-			Enemy->TakeDamage(SplashDmg, DmgEvent, nullptr, Instigator);
+			Enemy->TakeDamage(SplashDmg, DmgEvent, nullptr, TowerInstigator);
 		}
 	}
 }

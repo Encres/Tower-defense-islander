@@ -45,7 +45,7 @@ private:
 	TWeakObjectPtr<ATDIEnemyBase> Target;
 
 	UPROPERTY()
-	TObjectPtr<AActor> Instigator;
+	TObjectPtr<AActor> TowerInstigator;
 
 	float Damage = 0.0f;
 	float SplashRadius = 0.0f;
