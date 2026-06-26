@@ -81,11 +81,11 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Components")
 	TObjectPtr<UCapsuleComponent> TerritoryBounds;
 
-	UFUNCTION(BlueprintNativeEvent, Category = "Territory")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Territory")
 	void OnCaptureCompleted();
 	virtual void OnCaptureCompleted_Implementation();
 
-	UFUNCTION(BlueprintNativeEvent, Category = "Territory")
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Territory")
 	void OnTerritoryLost();
 	virtual void OnTerritoryLost_Implementation();
 

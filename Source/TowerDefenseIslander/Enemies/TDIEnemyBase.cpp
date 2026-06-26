@@ -84,7 +84,6 @@ float ATDIEnemyBase::TakeDamage(float DamageAmount, const FDamageEvent& DamageEv
 void ATDIEnemyBase::ApplyStatusEffect(const FTDIStatusEffect& Effect)
 {
 	// Check immunity
-	const FGameplayTagContainer& Tags = GetEnemyTags();
 	if (EnemyData && EnemyData->ImmuneTags.HasTag(Effect.EffectSource)) return;
 
 	// Stack or refresh existing effect of same source
@@ -99,11 +98,6 @@ void ATDIEnemyBase::ApplyStatusEffect(const FTDIStatusEffect& Effect)
 		}
 	}
 	ActiveEffects.Add(Effect);
-}
-
-bool ATDIEnemyBase::IsDead() const
-{
-	return bIsDead;
 }
 
 float ATDIEnemyBase::GetHealthPercent() const

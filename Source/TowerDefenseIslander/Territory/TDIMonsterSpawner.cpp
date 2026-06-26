@@ -52,7 +52,7 @@ void ATDIMonsterSpawner::SpawnPatrolEnemy()
 	if (PatrolEnemyClasses.IsEmpty()) return;
 
 	// Remove dead patrol enemies from list
-	ActivePatrolEnemies.RemoveAll([](const TObjectPtr<ATDIEnemyBase>& E) { return !E.IsValid(); });
+	ActivePatrolEnemies.RemoveAll([](const TObjectPtr<ATDIEnemyBase>& E) { return !IsValid(E.Get()); });
 
 	if (ActivePatrolEnemies.Num() >= MaxPatrolEnemies) return;
 

@@ -1,6 +1,7 @@
 #include "TDIProjectileBase.h"
 #include "Enemies/TDIEnemyBase.h"
 #include "PaperSpriteComponent.h"
+#include "Engine/DamageEvents.h"
 #include "Kismet/GameplayStatics.h"
 
 ATDIProjectileBase::ATDIProjectileBase()

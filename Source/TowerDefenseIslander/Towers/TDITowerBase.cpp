@@ -5,6 +5,7 @@
 #include "Subsystems/TDIResourceSubsystem.h"
 #include "Research/TDIResearchManager.h"
 #include "PaperSpriteComponent.h"
+#include "Engine/DamageEvents.h"
 #include "Components/SphereComponent.h"
 #include "Kismet/GameplayStatics.h"
 
@@ -65,7 +66,7 @@ float ATDITowerBase::TakeDamage(float DamageAmount, const FDamageEvent& DamageEv
 void ATDITowerBase::SetGhostMode(bool bGhost)
 {
 	bIsGhost = bGhost;
-	SpriteComponent->SetOpacity(bGhost ? 0.5f : 1.0f);
+	SpriteComponent->SetSpriteColor(FLinearColor(1.f, 1.f, 1.f, bGhost ? 0.5f : 1.f));
 	SetActorEnableCollision(!bGhost);
 }
 
