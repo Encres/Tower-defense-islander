@@ -6,7 +6,7 @@ public class TowerDefenseIslanderEditorTarget : TargetRules
 	public TowerDefenseIslanderEditorTarget(TargetInfo Target) : base(Target)
 	{
 		Type = TargetType.Editor;
-		DefaultBuildSettings = BuildSettingsVersion.V2;
+		DefaultBuildSettings = BuildSettingsVersion.V5;
 		IncludeOrderVersion = EngineIncludeOrderVersion.Unreal5Latest;
 		ExtraModuleNames.Add("TowerDefenseIslander");
 	}
