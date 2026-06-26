@@ -132,8 +132,6 @@ struct TOWERDEFENSEISLANDER_API FTDIResourceAmount
 		: ResourceType(InType), Amount(InAmount) {}
 };
 
-// Semantic alias — same layout, different intent
-using FTDIResourceCost = FTDIResourceAmount;
 
 // ============================================================
 // TOWERS — per-tier stats block
@@ -168,7 +166,7 @@ struct TOWERDEFENSEISLANDER_API FTDITowerTierStats
 	float DotDuration = 0.0f;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Tower")
-	TArray<FTDIResourceCost> UpgradeCost;
+	TArray<FTDIResourceAmount> UpgradeCost;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Tower")
 	FGameplayTag RequiredResearch;

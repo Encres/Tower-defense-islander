@@ -94,7 +94,7 @@ protected:
 	TArray<float> MaxHealthPerTier = { 100.0f, 200.0f, 400.0f, 800.0f };
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Road")
-	TArray<FTDIResourceCost> UpgradeCostPerTier;
+	TArray<FTDIResourceAmount> UpgradeCostPerTier;
 
 	// Speed multiplier granted to carts travelling on this road tier
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Road")

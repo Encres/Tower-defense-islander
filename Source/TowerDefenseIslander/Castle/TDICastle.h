@@ -68,7 +68,7 @@ protected:
 	int32 MaxCastleLevel = 3;
 
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Castle|Upgrade")
-	TArray<FTDIResourceCost> UpgradeCosts;  // one entry per upgrade tier
+	TArray<FTDIResourceAmount> UpgradeCosts;  // one entry per upgrade tier
 
 private:
 	float CurrentHealth = 0.0f;

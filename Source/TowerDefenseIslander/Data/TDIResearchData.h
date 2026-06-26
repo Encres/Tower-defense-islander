@@ -27,7 +27,7 @@ public:
 
 	// Resources consumed to unlock this research
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Research|Cost")
-	TArray<FTDIResourceCost> Cost;
+	TArray<FTDIResourceAmount> Cost;
 
 	// Research nodes that must be unlocked before this one
 	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "Research|Prerequisites")

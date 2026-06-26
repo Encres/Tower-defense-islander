@@ -49,7 +49,7 @@ public:
 	bool CanUpgrade() const;
 
 	UFUNCTION(BlueprintPure, Category = "Tower|Upgrade")
-	TArray<FTDIResourceCost> GetUpgradeCost() const;
+	TArray<FTDIResourceAmount> GetUpgradeCost() const;
 
 	// ---- Stats ----
 	UFUNCTION(BlueprintPure, Category = "Tower")

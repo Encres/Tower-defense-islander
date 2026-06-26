@@ -118,11 +118,11 @@ bool ATDITowerBase::CanUpgrade() const
 	return true;
 }
 
-TArray<FTDIResourceCost> ATDITowerBase::GetUpgradeCost() const
+TArray<FTDIResourceAmount> ATDITowerBase::GetUpgradeCost() const
 {
 	if (!TowerData) return {};
 	const FTDITowerTierStats* Stats = TowerData->GetTierStats(CurrentTier);
-	return Stats ? Stats->UpgradeCost : TArray<FTDIResourceCost>{};
+	return Stats ? Stats->UpgradeCost : TArray<FTDIResourceAmount>{};
 }
 
 float ATDITowerBase::GetHealthPercent() const
