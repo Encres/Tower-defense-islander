@@ -57,6 +57,11 @@ public:
 	// ---- Save/Restore ----
 	void RestoreState(ETerritoryState NewState, float Progress);
 
+	// Called by outpost when it's destroyed — territory reverts to Wild
+	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Territory")
+	void OnTerritoryLost();
+	virtual void OnTerritoryLost_Implementation();
+
 	// ---- Events ----
 	UPROPERTY(BlueprintAssignable, Category = "Territory|Events")
 	FOnTerritoryStateChangedLocal OnStateChanged;
@@ -84,10 +89,6 @@ protected:
 	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Territory")
 	void OnCaptureCompleted();
 	virtual void OnCaptureCompleted_Implementation();
-
-	UFUNCTION(BlueprintCallable, BlueprintNativeEvent, Category = "Territory")
-	void OnTerritoryLost();
-	virtual void OnTerritoryLost_Implementation();
 
 private:
 	ETerritoryState TerritoryState = ETerritoryState::Wild;
